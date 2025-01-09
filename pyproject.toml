@@ -14,7 +14,8 @@ classifiers = [
 ]
 
 dependencies = [
-    "ccdproc"
+    "ccdproc",
+    "astropy",
 ]
 dynamic = ["version"]
 
