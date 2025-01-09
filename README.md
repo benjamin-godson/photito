@@ -1,0 +1,1 @@
+Python package for the processing of data from *gotito*, the GOTO CMOS pathfinder telescope.
