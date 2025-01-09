@@ -1,0 +1,51 @@
+[project]
+name = "gotito.pipeline"
+description = "Image processing pipeline for the gotito telescope."
+readme = "README.md"
+authors = [
+    { name = "Benjamin Godson", email = "benjamin.godson@warwick.ac.uk" }
+]
+license = { file = 'LICENSE' }
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "ccdproc"
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+docs = [
+    "sphinx",
+    "sphinx-automodapi",
+    "numpydoc",
+]
+test = [
+    "pytest",
+    "pytest-doctestplus",
+    "flake8",
+    "flake8-pyproject",
+    "codecov",
+    "pytest-cov",
+]
+
+[project.urls]
+
+
+[build-system]
+requires = [
+    "setuptools>=60",
+    "setuptools_scm>=8.0",
+    "wheel",
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+write_to = "src/gotito.pipeline/_version.py"
+
+[tool.setuptools.packages.find]
+where = ["src"]
