@@ -6,7 +6,7 @@
 Welcome to photito's documentation!
 ===========================================
 
-.. automodapi:: photito.astrometry
+.. automodapi:: photito.processes.astrometry
    :no-inheritance-diagram:
    :no-show-inheritance:
 
