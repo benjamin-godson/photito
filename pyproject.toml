@@ -1,5 +1,5 @@
 [project]
-name = "gotito.pipeline"
+name = "photito"
 description = "Image processing pipeline for the gotito telescope."
 readme = "README.md"
 authors = [
@@ -46,7 +46,7 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools_scm]
-write_to = "src/gotito.pipeline/_version.py"
+write_to = "src/photito/_version.py"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -1,5 +1,5 @@
 from astropy.table import Table
-
+from astropy.wcs import WCS
 
 def solve_astrometry(detection_tbl: Table,
                      ra_initial: float or None,
@@ -8,7 +8,7 @@ def solve_astrometry(detection_tbl: Table,
                      width: int,
                      height: int,
                      pixel_scale: float,
-                     n_source_max: int):
+                     n_source_max: int) -> WCS:
     """
     Find astrometric solution from a table of detected sources.
     :param detection_tbl:  Table of detected sources.
@@ -19,6 +19,6 @@ def solve_astrometry(detection_tbl: Table,
     :param height: Height of the image in pixels.
     :param pixel_scale: Pixel scale of the image in arcseconds per pixel.
     :param n_source_max: Maximum number of sources to use for the astrometric solution.
-    :return:
+    :return: WCS object with the astrometric solution.
     """
-    pass
+    return WCS()  # Dummy return value
