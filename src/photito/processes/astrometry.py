@@ -1,6 +1,7 @@
 from astropy.table import Table
 from astropy.wcs import WCS
 
+
 def solve_astrometry(detection_tbl: Table,
                      ra_initial: float or None,
                      dec_initial: float or None,
@@ -9,8 +10,8 @@ def solve_astrometry(detection_tbl: Table,
                      height: int,
                      pixel_scale: float,
                      n_source_max: int) -> WCS:
-    """
-    Find astrometric solution from a table of detected sources.
+    """Find astrometric solution from a table of detected sources.
+
     :param detection_tbl:  Table of detected sources.
     :param ra_initial: Initial guess for the right ascension of the field center.
     :param dec_initial: Initial guess for the declination of the field center.
