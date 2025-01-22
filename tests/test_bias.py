@@ -16,6 +16,17 @@ def test_create_bias_set(path='tests/data/bias'):
     assert (bias_set.summary['file'] == files).all()
     assert (imagetyp.lower() == 'bias' for imagetyp in bias_set.summary['imagetyp'])
 
+def test_bias_combine_method(path='tests/data/bias', output='tests/data/bias_combined.fits'):
+    files = [os.path.join(path, f) for f in os.listdir(path)]
+    bias_set = BiasSet(files)
+    bias_set.combine(output)
+    assert os.path.exists(output)
+    with fits.open(output) as hdul:
+        assert hdul[0].header['BITPIX'] == -32
+        assert hdul[0].header['NAXIS'] == 2
+        assert hdul[0].data.shape == (10656, 14208)
+    os.remove(output)
+
 @pytest.mark.skip(reason="Slow test")
 def test_combine_bias(path='tests/data/bias', output='tests/data/bias_combined.fits'):
     """Check if combine_bias works."""
