@@ -4,6 +4,9 @@ import logging
 import ccdproc as ccdp
 from ..image_sets import BiasSet
 
+def inv_median(a):
+    return 1 / np.median(a)
+
 def combine_bias(files: list, output: str):
     """Combine bias frames."""
     # Read bias frames
@@ -34,6 +37,7 @@ def calibrate_darks_ccdproc(files: list, output_dir: str, bias: str = None, mem_
         image_type = fits.getval(file, 'IMAGETYP', ext=0).lower()
         if image_type != 'dark':
             raise ValueError(f'Image {file} is not a dark frame.')
+    # Check if all dark frames have the same exposure time
     # Calibrate dark frames
     for file in files:
         dark = ccdp.CCDData.read(file, unit='adu')
@@ -143,7 +147,7 @@ def combine_flats_ccdproc(files: list, output: str, validate=True, mem_limit=32e
     flat = ccdp.combine(flats, method=combine_method, unit='adu',
                         sigma_clip=sigma_clip, sigma_clip_low_thresh=sigma_clip_low_thresh,
                         sigma_clip_high_thresh=sigma_clip_high_thresh,
-                        mem_limit=mem_limit, dtype=dtype)
+                        mem_limit=mem_limit, dtype=dtype, scale=inv_median)
     # Save combined flat
     flat.meta['combined'] = True
     flat.meta['combine_method'] = combine_method
