@@ -23,6 +23,30 @@ def combine_bias_ccdproc(files: list, output: str):
     # Save combined bias
     bias.write(output, overwrite=True)
 
+def calibrate_darks_ccdproc(files: list, output_dir: str, bias: str = None, mem_limit=32e9):
+    """Calibrate dark frames using ccdproc.
+    :param files: List of dark frames.
+    :param output_dir: Output folder.
+    :param bias: Master bias frame location.
+    :param mem_limit: Memory limit for the operation.
+    """
+    for file in files:
+        image_type = fits.getval(file, 'IMAGETYP', ext=0).lower()
+        if image_type != 'dark':
+            raise ValueError(f'Image {file} is not a dark frame.')
+    # Calibrate dark frames
+    for file in files:
+        dark = ccdp.CCDData.read(file, unit='adu')
+        if bias is not None:
+            master_bias = ccdp.CCDData.read(bias, unit='adu')
+            if dark.meta['cam-gain'] != master_bias.meta['cam-gain']:
+                logging.warning(f'Gain mismatch between dark and bias frames: {file} and {bias}.')
+            dark = ccdp.subtract_bias(dark, master_bias)
+            dark.meta['bias_sub'] = True
+            dark.meta['bias_file'] = bias.split('/')[-1]
+        dark.meta['calibrated'] = True
+        dark.write(output_dir + '/' + file.split('/')[-1], overwrite=True)
+
 def combine_darks_ccdproc(files: list, output: str, validate=True, mem_limit=32e9,
                           sigma_clip: bool = True,
                           sigma_clip_low_thresh=5,
