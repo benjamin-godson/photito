@@ -17,13 +17,19 @@ def combine_bias(files: list, output: str):
     hdu = fits.PrimaryHDU(bias)
     hdu.writeto(output, overwrite=True)
 
-def combine_bias_ccdproc(files: list, output: str):
+def combine_bias_ccdproc(files: list, output: str, mem_limit=32e9,
+                         sigma_clip: bool = True, sigma_clip_low_thresh=5, sigma_clip_high_thresh=5,
+                         combine_method='average', dtype=np.float32):
     """Combine bias frames using ccdproc."""
     # Read bias frames
     bias_frames = [ccdp.CCDData.read(file, unit='adu') for file in files]
     # Combine bias frames
-    bias = ccdp.combine(bias_frames, method='median')
+    bias = ccdp.combine(bias_frames, method=combine_method, unit='adu',
+                        sigma_clip=sigma_clip, sigma_clip_low_thresh=sigma_clip_low_thresh,
+                        sigma_clip_high_thresh=sigma_clip_high_thresh,
+                        mem_limit=mem_limit, dtype=dtype)
     # Save combined bias
+    bias.meta['combined'] = True
     bias.write(output, overwrite=True)
 
 def calibrate_darks_ccdproc(files: list, output_dir: str, bias: str = None, mem_limit=32e9):
@@ -135,6 +141,9 @@ def combine_flats_ccdproc(files: list, output: str, validate=True, mem_limit=32e
     :param combine_method: Method for combining the frames.
     :param dtype: Data type for the output.
     """
+    filters = [fits.getval(file, 'FILTER', ext=0) for file in files]
+    if len(set(filters)) > 1:
+        raise ValueError('Flat frames must have the same filter.')
     for file in files:
         image_type = fits.getval(file, 'IMAGETYP', ext=0).lower()
         if image_type != 'flat':
