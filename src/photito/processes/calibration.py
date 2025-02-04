@@ -2,7 +2,10 @@ from astropy.io import fits
 import numpy as np
 import logging
 import ccdproc as ccdp
+from astropy.nddata import CCDData
+from astropy.stats import mad_std
 from ..image_sets import BiasSet
+import astropy.units as u
 
 def inv_median(a):
     return 1 / np.median(a)
@@ -45,10 +48,11 @@ def calibrate_darks_ccdproc(files: list, output_dir: str, bias: str = None, mem_
             raise ValueError(f'Image {file} is not a dark frame.')
     # Check if all dark frames have the same exposure time
     # Calibrate dark frames
+    if bias is not None:
+        master_bias = ccdp.CCDData.read(bias, unit='adu')
     for file in files:
         dark = ccdp.CCDData.read(file, unit='adu')
         if bias is not None:
-            master_bias = ccdp.CCDData.read(bias, unit='adu')
             if dark.meta['cam-gain'] != master_bias.meta['cam-gain']:
                 logging.warning(f'Gain mismatch between dark and bias frames: {file} and {bias}.')
             dark = ccdp.subtract_bias(dark, master_bias)
@@ -116,10 +120,10 @@ def calibrate_flats_ccdproc(files: list, output_dir: str, dark: str = None, bias
             flat = ccdp.subtract_bias(flat, master_bias)
             flat.meta['bias_file'] = bias.split('/')[-1]
             if dark is not None:
-                flat = ccdp.subtract_dark(flat, master_dark, exposure_time='exptime', exposure_unit='s', scale=True)
+                flat: CCDData = ccdp.subtract_dark(flat, master_dark, exposure_time='exptime', exposure_unit=u.s, scale=True)
                 flat.meta['dark_file'] = dark.split('/')[-1]
         else:
-            flat = ccdp.subtract_dark(flat, master_dark, exposure_time='exptime', exposure_unit='s', scale=False)
+            flat = ccdp.subtract_dark(flat, master_dark, exposure_time='exptime', exposure_unit=u.s, scale=False)
             flat.meta['dark_file'] = dark.split('/')[-1]
         flat.meta['calibrated'] = True
         flat.write(output_dir + '/' + file.split('/')[-1], overwrite=True)
@@ -155,7 +159,8 @@ def combine_flats_ccdproc(files: list, output: str, validate=True, mem_limit=32e
     flats = [ccdp.CCDData.read(file, unit='adu') for file in files]
     flat = ccdp.combine(flats, method=combine_method, unit='adu',
                         sigma_clip=sigma_clip, sigma_clip_low_thresh=sigma_clip_low_thresh,
-                        sigma_clip_high_thresh=sigma_clip_high_thresh,
+                        sigma_clip_high_thresh=sigma_clip_high_thresh, sigclip_func=np.ma.median,
+                        sigma_clip_dev_func=mad_std,
                         mem_limit=mem_limit, dtype=dtype, scale=inv_median)
     # Save combined flat
     flat.meta['combined'] = True
@@ -165,3 +170,36 @@ def combine_flats_ccdproc(files: list, output: str, validate=True, mem_limit=32e
         flat.meta['sigma_clip_low_thresh'] = sigma_clip_low_thresh
         flat.meta['sigma_clip_high_thresh'] = sigma_clip_high_thresh
     flat.write(output, overwrite=True)
+
+
+def calibrate_lights_ccdproc(files:list, output_dir:str,
+                             master_bias:str=None, master_dark:str=None, master_flat:str=None):
+    """Calibrate light frames using ccdproc.
+    :param files: List of light frames.
+    :param output_dir: Output folder.
+    :param master_bias: Master bias frame location.
+    :param master_dark: Master dark frame location.
+    :param master_flat: Master flat frame location.
+    """
+    scale = False
+    if master_bias is not None:
+        master_bias = ccdp.CCDData.read(master_bias, unit='adu')
+        scale = True
+    if master_dark is not None:
+        master_dark = ccdp.CCDData.read(master_dark, unit='adu')
+    if master_flat is not None:
+        master_flat = ccdp.CCDData.read(master_flat, unit='adu')
+    for file in files:
+        image = ccdp.CCDData.read(file, unit='adu')
+        if master_bias is not None:
+            image: CCDData = ccdp.subtract_bias(image, master_bias)
+            image.meta['bias_file'] = master_bias.meta['filename']
+        if master_dark is not None:
+            image = ccdp.subtract_dark(image, master_dark, exposure_time='exptime', exposure_unit=u.s, scale=scale)
+            image.meta['dark_file'] = master_dark.meta['filename']
+        if master_flat is not None:
+            image = ccdp.flat_correct(image, master_flat, min_value=0.1, norm_value=1)
+            image.meta['flat_file'] = master_flat.meta['filename']
+        image.meta['calibrated'] = True
+        image.write(output_dir + '/' + file.split('/')[-1], overwrite=True)
+
