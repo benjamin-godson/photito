@@ -47,6 +47,8 @@ def align_light_thread(file: str, reference_detections: Table, output_dir: str):
 
 def reference_extraction(data: np.ndarray, threshold: float = 1.5):
     """Extract sources from a reference frame."""
+    if data.dtype.byteorder == '>':
+        data = data.byteswap().newbyteorder()
     background = sep.Background(data)
     data_sub = data - background
 
