@@ -6,5 +6,6 @@ try:
     __version__ = _version(__name__)
 except PackageNotFoundError:
     pass
+loggers = logging.getLogger(__name__)
+loggers.addHandler(logging.NullHandler())
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
