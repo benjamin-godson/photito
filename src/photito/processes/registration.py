@@ -42,7 +42,7 @@ def align_light_thread(file: str, reference_detections: Table, output_dir: str):
     image_header = fits.getheader(file)
     spalipy = Spalipy(image_data, template_det=reference_detections, source_mask=mask)
     spalipy.align()
-    combined_data = CCDData(data=spalipy.aligned_data, mask=spalipy.aligned_mask, header=image_header)
+    combined_data = CCDData(data=spalipy.aligned_data, mask=spalipy.aligned_mask, header=image_header, unit='adu')
     combined_data.write(f'{output_dir}/aligned_{file.split("/")[-1]}', overwrite=True)
 
 def reference_extraction(data: np.ndarray, threshold: float = 1.5):
