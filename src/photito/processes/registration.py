@@ -25,10 +25,11 @@ def align_lights(files: list, output_dir: str, reference: str = None, n_processe
     reference_detections = reference_extraction(reference_data)
     if n_processes > 1:
         with Pool(n_processes) as pool:
-            pool.starmap(align_light_thread, [(file, reference_data, output_dir) for file in files])
+            pool.starmap(align_light_thread, [(file, reference_detections, output_dir) for file in files])
     else:
         for file in files:
             align_light_thread(file, reference_data, output_dir)
+    logger.info('Alignment complete.')
 
 
 def align_light_thread(file: str, reference_detections: Table, output_dir: str):
@@ -42,6 +43,7 @@ def align_light_thread(file: str, reference_detections: Table, output_dir: str):
     image_header = fits.getheader(file)
     spalipy = Spalipy(image_data, template_det=reference_detections, source_mask=mask)
     spalipy.align()
+    logger.info(f'Writing aligned {file}.')
     combined_data = CCDData(data=spalipy.aligned_data, mask=spalipy.aligned_mask, header=image_header, unit='adu')
     combined_data.write(f'{output_dir}/aligned_{file.split("/")[-1]}', overwrite=True)
 
