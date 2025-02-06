@@ -6,6 +6,7 @@ import sep
 import numpy as np
 import logging
 from multiprocessing import Pool
+from shutil import copyfile
 
 logger = logging.getLogger(__name__)
 
@@ -19,10 +20,15 @@ def align_lights(files: list, output_dir: str, reference: str = None, n_processe
     logger.info(f'Aligning {len(files)} light frames.')
     if reference is None:
         reference = files[len(files) // 2]
+        copyfile(reference, f'{output_dir}/aligned_{reference.split("/")[-1]}')
+        files.remove(reference)
+
     logger.info(f'Using {reference} as reference frame.')
     reference_data = fits.getdata(reference)
     reference_data = np.nan_to_num(reference_data)
+    logger.info('Extracting sources from reference frame.')
     reference_detections = reference_extraction(reference_data)
+    logger.info(f"Found {len(reference_detections)} sources in reference frame.")
     if n_processes > 1:
         with Pool(n_processes) as pool:
             pool.starmap(align_light_thread, [(file, reference_detections, output_dir) for file in files])
