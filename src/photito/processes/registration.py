@@ -32,7 +32,7 @@ def align_lights(files: list, output_dir: str, reference: str = None, n_processe
     logger.info(f"Found {len(reference_detections)} sources in reference frame.")
     if n_processes > 1:
         with Pool(n_processes) as pool:
-            pool.starmap(align_light_thread, [(file, reference_detections, output_dir, threshold) for file in files])
+            pool.starmap(align_light_thread, [(file, reference_detections, output_dir) for file in files])
     else:
         for file in files:
             align_light_thread(file, reference_data, output_dir)
