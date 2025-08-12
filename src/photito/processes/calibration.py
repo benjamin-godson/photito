@@ -26,13 +26,25 @@ def combine_bias_ccdproc(files: list, output: str, mem_limit=32e9,
     """Combine bias frames using ccdproc."""
     # Read bias frames
     bias_frames = [ccdp.CCDData.read(file, unit='adu') for file in files]
+    # check all frames have the same gain
+    gains = [frame.meta.get('cam-gain', 1.0) for frame in bias_frames]
+    if len(set(gains)) > 1:
+        logging.error('Bias frames have different gains. Please ensure all bias frames have the same gain.')
+        raise ValueError(f'Bias frames have different gains: {set(gains)}.')
     # Combine bias frames
     bias = ccdp.combine(bias_frames, method=combine_method, unit='adu',
                         sigma_clip=sigma_clip, sigma_clip_low_thresh=sigma_clip_low_thresh,
                         sigma_clip_high_thresh=sigma_clip_high_thresh,
                         mem_limit=mem_limit, dtype=dtype)
     # Save combined bias
+    bias.meta['cam-gain'] = bias_frames[0].meta.get('cam-gain', 1.0)  # Use gain from first frame if available
     bias.meta['combined'] = True
+    bias.meta['n_comb'] = len(files)
+    bias.meta['comb_m'] = combine_method
+    bias.meta['sigclip'] = sigma_clip
+    if sigma_clip:
+        bias.meta['clip_l'] = sigma_clip_low_thresh
+        bias.meta['clip_h'] = sigma_clip_high_thresh
     bias.write(output, overwrite=True)
 
 def calibrate_darks_ccdproc(files: list, output_dir: str, bias: str = None, mem_limit=32e9):
@@ -92,11 +104,12 @@ def combine_darks_ccdproc(files: list, output: str, validate=True, mem_limit=32e
                         mem_limit=mem_limit, dtype=dtype)
     # Save combined dark
     dark.meta['combined'] = True
-    dark.meta['combine_method'] = combine_method
-    dark.meta['sigma_clip'] = sigma_clip
+    dark.meta['n_comb'] = len(files)
+    dark.meta['comb_m'] = combine_method
+    dark.meta['sigclip'] = sigma_clip
     if sigma_clip:
-        dark.meta['sigma_clip_low_thresh'] = sigma_clip_low_thresh
-        dark.meta['sigma_clip_high_thresh'] = sigma_clip_high_thresh
+        dark.meta['clip_l'] = sigma_clip_low_thresh
+        dark.meta['clip_h'] = sigma_clip_high_thresh
     dark.write(output, overwrite=True)
 
 def calibrate_flats_ccdproc(files: list, output_dir: str, dark: str = None, bias: str = None, mem_limit=32e9):
@@ -164,11 +177,12 @@ def combine_flats_ccdproc(files: list, output: str, validate=True, mem_limit=32e
                         mem_limit=mem_limit, dtype=dtype, scale=inv_median)
     # Save combined flat
     flat.meta['combined'] = True
-    flat.meta['combine_method'] = combine_method
-    flat.meta['sigma_clip'] = sigma_clip
+    flat.meta['n_comb'] = len(files)
+    flat.meta['comb_m'] = combine_method
+    flat.meta['sigclip'] = sigma_clip
     if sigma_clip:
-        flat.meta['sigma_clip_low_thresh'] = sigma_clip_low_thresh
-        flat.meta['sigma_clip_high_thresh'] = sigma_clip_high_thresh
+        flat.meta['clip_l'] = sigma_clip_low_thresh
+        flat.meta['clip_h'] = sigma_clip_high_thresh
     flat.write(output, overwrite=True)
 
 
