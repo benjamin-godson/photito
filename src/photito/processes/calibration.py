@@ -36,8 +36,12 @@ def combine_bias_ccdproc(files: list, output: str, mem_limit=32e9,
                         sigma_clip=sigma_clip, sigma_clip_low_thresh=sigma_clip_low_thresh,
                         sigma_clip_high_thresh=sigma_clip_high_thresh,
                         mem_limit=mem_limit, dtype=dtype)
+    # mask values which have saturation or are NaN
+    mask = np.isnan(bias.data) | (bias.data <= 0) | (bias.data >= 65535)  # Assuming 16-bit data
+    logging.info(f'Masking {np.sum(mask)} pixels in combined bias frame.')
+    bias.mask = mask
     # Save combined bias
-    bias.meta['cam-gain'] = bias_frames[0].meta.get('cam-gain', 1.0)  # Use gain from first frame if available
+    bias.meta['cam-gain'] = gains[0]  # Use gain from first frame if available
     bias.meta['combined'] = True
     bias.meta['n_comb'] = len(files)
     bias.meta['comb_m'] = combine_method
@@ -102,8 +106,13 @@ def combine_darks_ccdproc(files: list, output: str, validate=True, mem_limit=32e
                         sigma_clip=sigma_clip, sigma_clip_low_thresh=sigma_clip_low_thresh,
                         sigma_clip_high_thresh=sigma_clip_high_thresh,
                         mem_limit=mem_limit, dtype=dtype)
+    # mask values which have saturation or are NaN
+    mask = np.isnan(dark.data) | (dark.data <= 0) | (dark.data >= 65535)  # Assuming 16-bit data
+    logging.info(f'Masking {np.sum(mask)} pixels in combined dark frame.')
+    dark.mask = mask
     # Save combined dark
     dark.meta['combined'] = True
+    dark.meta['cam-gain'] = ccdp.CCDData.read(files[0], unit='adu').meta.get('cam-gain', 1.0)  # Use gain from first frame if available
     dark.meta['n_comb'] = len(files)
     dark.meta['comb_m'] = combine_method
     dark.meta['sigclip'] = sigma_clip
@@ -175,6 +184,10 @@ def combine_flats_ccdproc(files: list, output: str, validate=True, mem_limit=32e
                         sigma_clip_high_thresh=sigma_clip_high_thresh, sigclip_func=np.ma.median,
                         sigma_clip_dev_func=mad_std,
                         mem_limit=mem_limit, dtype=dtype, scale=inv_median)
+    # mask values which have saturation or are NaN
+    mask = np.isnan(flat.data) | (flat.data <= 0) | (flat.data >= 65535)  # Assuming 16-bit data
+    logging.info(f'Masking {np.sum(mask)} pixels in combined flat frame.')
+    flat.mask = mask
     # Save combined flat
     flat.meta['combined'] = True
     flat.meta['n_comb'] = len(files)
@@ -196,13 +209,23 @@ def calibrate_lights_ccdproc(files:list, output_dir:str,
     :param master_flat: Master flat frame location.
     """
     scale = False
+    mask = None
     if master_bias is not None:
         master_bias = ccdp.CCDData.read(master_bias, unit='adu')
         scale = True
+        mask = master_bias.mask
     if master_dark is not None:
         master_dark = ccdp.CCDData.read(master_dark, unit='adu')
+        if mask is not None:
+            mask = mask | master_dark.mask
+        else:
+            mask = master_dark.mask
     if master_flat is not None:
         master_flat = ccdp.CCDData.read(master_flat, unit='adu')
+        if mask is not None:
+            mask = mask | master_flat.mask
+        else:
+            mask = master_flat.mask
     for file in files:
         image = ccdp.CCDData.read(file, unit='adu')
         if master_bias is not None:
@@ -214,6 +237,14 @@ def calibrate_lights_ccdproc(files:list, output_dir:str,
         if master_flat is not None:
             image = ccdp.flat_correct(image, master_flat, min_value=0.1, norm_value=1)
             image.meta['flat_file'] = master_flat.meta['filename']
+        # mask values which were masked in the calibration steps or are NaN
+        if mask is not None:
+            mask = mask | np.isnan(image.data) | (image.data <= 0) | (image.data >= 65535)
+        else:
+            mask = np.isnan(image.data) | (image.data <= 0) | (image.data >= 65535)
+        logging.info(f'Masking {np.sum(mask)} pixels in calibrated light frame {file}.')
+        image.mask = mask
+        # Save calibrated light frame
         image.meta['calibrated'] = True
         image.write(output_dir + '/' + file.split('/')[-1], overwrite=True)
 
