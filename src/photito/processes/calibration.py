@@ -115,7 +115,7 @@ def combine_darks_ccdproc(files: list, output: str, validate=True, mem_limit=32e
     # mask values which have saturation or are NaN
     mask = np.isnan(dark.data)  | (dark.data >= 65535)  # Assuming 16-bit data
     logging.info(f'Masking {np.sum(mask)} pixels in combined dark frame.')
-    dark.mask = mask
+    dark.mask = mask | dark.mask
     # Save combined dark
     dark.meta['combined'] = True
     dark.meta['cam-gain'] = ccdp.CCDData.read(files[0], unit='adu').meta.get('cam-gain', 1.0)  # Use gain from first frame if available
