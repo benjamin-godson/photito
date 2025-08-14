@@ -73,7 +73,6 @@ def calibrate_darks_ccdproc(files: list, output_dir: str, bias: str = None, mem_
         mask = np.isnan(dark.data) | (dark.data <= 0) | (dark.data >= 65535)  # Assuming 16-bit data
         logging.info(f'Masking {np.sum(mask)} pixels in dark frame {file} before bias subtraction.'
                      f' {np.sum(mask)/ dark.data.size:.2%} of pixels masked.')
-        dark.mask = mask
         if bias is not None:
             if dark.meta['cam-gain'] != master_bias.meta['cam-gain']:
                 logging.warning(f'Gain mismatch between dark and bias frames: {file} and {bias}.')
@@ -81,6 +80,8 @@ def calibrate_darks_ccdproc(files: list, output_dir: str, bias: str = None, mem_
             dark.meta['bias_sub'] = True
             dark.meta['bias_file'] = bias.split('/')[-1]
         dark.meta['calibrated'] = True
+        dark.mask = mask | dark.mask  # Combine masks
+        # Save calibrated dark frame
         dark.write(output_dir + '/' + file.split('/')[-1], overwrite=True)
 
 def combine_darks_ccdproc(files: list, output: str, validate=True, mem_limit=32e9,
