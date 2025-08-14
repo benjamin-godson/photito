@@ -72,7 +72,7 @@ def calibrate_darks_ccdproc(files: list, output_dir: str, bias: str = None, mem_
         # mask saturated pixels here (as they won't be saturated after bias subtraction)
         mask = np.isnan(dark.data) | (dark.data <= 0) | (dark.data >= 65535)  # Assuming 16-bit data
         logging.info(f'Masking {np.sum(mask)} pixels in dark frame {file} before bias subtraction.'
-                     f' {np.sum(mask)/ dark.data.size:.2%} of pixels masked.')
+                     f' {np.sum(mask)/ dark.data.size:.4%} of pixels masked.')
         if bias is not None:
             if dark.meta['cam-gain'] != master_bias.meta['cam-gain']:
                 logging.warning(f'Gain mismatch between dark and bias frames: {file} and {bias}.')
@@ -93,7 +93,8 @@ def combine_darks_ccdproc(files: list, output: str, validate=True, mem_limit=32e
                           sigma_clip_low_thresh=5,
                           sigma_clip_high_thresh=5,
                           combine_method='average',
-                          dtype=np.float32):
+                          dtype=np.float32,
+                          max_value=60000):
     """Combine dark frames using ccdproc.
     :param files: List of dark frames.
     :param output: Output file name.
@@ -104,6 +105,7 @@ def combine_darks_ccdproc(files: list, output: str, validate=True, mem_limit=32e
     :param sigma_clip_high_thresh: High threshold for sigma clipping.
     :param combine_method: Method for combining the frames.
     :param dtype: Data type for the output.
+    :param max_value: Mask pixels with values above this threshold
     """
     for file in files:
         image_type = fits.getval(file, 'IMAGETYP', ext=0).lower()
@@ -118,7 +120,7 @@ def combine_darks_ccdproc(files: list, output: str, validate=True, mem_limit=32e
                         sigma_clip_high_thresh=sigma_clip_high_thresh,
                         mem_limit=mem_limit, dtype=dtype)
     # mask values which have saturation or are NaN
-    mask = np.isnan(dark.data)  | (dark.data >= 65535)  # Assuming 16-bit data
+    mask = np.isnan(dark.data)  | (dark.data >= max_value)  # Assuming 16-bit data
     logging.info(f'Masking {np.sum(mask)} pixels in combined dark frame.')
     if dark.mask is not None:
         dark.mask = mask | dark.mask
