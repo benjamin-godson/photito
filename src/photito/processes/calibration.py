@@ -64,10 +64,16 @@ def calibrate_darks_ccdproc(files: list, output_dir: str, bias: str = None, mem_
             raise ValueError(f'Image {file} is not a dark frame.')
     # Check if all dark frames have the same exposure time
     # Calibrate dark frames
+
     if bias is not None:
         master_bias = ccdp.CCDData.read(bias, unit='adu')
     for file in files:
         dark = ccdp.CCDData.read(file, unit='adu')
+        # mask saturated pixels here (as they won't be saturated after bias subtraction)
+        mask = np.isnan(dark.data) | (dark.data <= 0) | (dark.data >= 65535)  # Assuming 16-bit data
+        logging.info(f'Masking {np.sum(mask)} pixels in dark frame {file} before bias subtraction.'
+                     f' {np.sum(mask)/ dark.data.size:.2%} of pixels masked.')
+        dark.mask = mask
         if bias is not None:
             if dark.meta['cam-gain'] != master_bias.meta['cam-gain']:
                 logging.warning(f'Gain mismatch between dark and bias frames: {file} and {bias}.')
@@ -107,7 +113,7 @@ def combine_darks_ccdproc(files: list, output: str, validate=True, mem_limit=32e
                         sigma_clip_high_thresh=sigma_clip_high_thresh,
                         mem_limit=mem_limit, dtype=dtype)
     # mask values which have saturation or are NaN
-    mask = np.isnan(dark.data) | (dark.data <= 0) | (dark.data >= 65535)  # Assuming 16-bit data
+    mask = np.isnan(dark.data)  | (dark.data >= 65535)  # Assuming 16-bit data
     logging.info(f'Masking {np.sum(mask)} pixels in combined dark frame.')
     dark.mask = mask
     # Save combined dark
