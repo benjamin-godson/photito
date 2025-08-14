@@ -80,7 +80,11 @@ def calibrate_darks_ccdproc(files: list, output_dir: str, bias: str = None, mem_
             dark.meta['bias_sub'] = True
             dark.meta['bias_file'] = bias.split('/')[-1]
         dark.meta['calibrated'] = True
-        dark.mask = mask | dark.mask  # Combine masks
+        if dark.mask is not None:
+            dark.mask = mask | dark.mask  # Combine masks
+        else:
+            dark.mask = mask
+
         # Save calibrated dark frame
         dark.write(output_dir + '/' + file.split('/')[-1], overwrite=True)
 
@@ -116,7 +120,10 @@ def combine_darks_ccdproc(files: list, output: str, validate=True, mem_limit=32e
     # mask values which have saturation or are NaN
     mask = np.isnan(dark.data)  | (dark.data >= 65535)  # Assuming 16-bit data
     logging.info(f'Masking {np.sum(mask)} pixels in combined dark frame.')
-    dark.mask = mask | dark.mask
+    if dark.mask is not None:
+        dark.mask = mask | dark.mask
+    else:
+        dark.mask = mask
     # Save combined dark
     dark.meta['combined'] = True
     dark.meta['cam-gain'] = ccdp.CCDData.read(files[0], unit='adu').meta.get('cam-gain', 1.0)  # Use gain from first frame if available
