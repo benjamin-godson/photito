@@ -45,10 +45,9 @@ def align_light_thread(file: str, reference_detections: Table, output_dir: str):
     image: CCDData = CCDData.read(file)
     image_data = image.data
     if image.mask is not None:
-        mask = image.mask
+        mask = image.mask | np.isnan(image_data) | (image_data<0)
     else:
-        mask = np.zeros_like(image_data, dtype=bool)
-    mask = mask | np.isnan(image_data) | image_data< 0
+        mask = np.isnan(image_data) | (image_data<0)
     image_data = np.nan_to_num(image_data)
     image_data = np.clip(image_data, 0, None)
     image_header = fits.getheader(file)
