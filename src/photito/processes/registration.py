@@ -42,9 +42,13 @@ def align_lights(files: list, output_dir: str, reference: str = None, n_processe
 def align_light_thread(file: str, reference_detections: Table, output_dir: str):
     """Align a light frame to a reference frame."""
     logger.info(f'Aligning {file}.')
-    image_data = fits.getdata(file)
-    mask = np.isnan(image_data)
-    mask += image_data <= 0
+    image: CCDData = CCDData.read(file)
+    image_data = image.data
+    if image.mask is not None:
+        mask = image.mask
+    else:
+        mask = np.zeros_like(image_data, dtype=bool)
+    mask = mask | np.isnan(image_data) | image_data< 0
     image_data = np.nan_to_num(image_data)
     image_data = np.clip(image_data, 0, None)
     image_header = fits.getheader(file)
