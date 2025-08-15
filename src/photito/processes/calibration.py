@@ -229,21 +229,15 @@ def calibrate_lights_ccdproc(files:list, output_dir:str,
     if master_bias is not None:
         master_bias = ccdp.CCDData.read(master_bias, unit='adu')
         scale = True
-        mask = master_bias.mask
     if master_dark is not None:
         master_dark = ccdp.CCDData.read(master_dark, unit='adu')
-        if mask is not None:
-            mask = mask | master_dark.mask
-        else:
-            mask = master_dark.mask
     if master_flat is not None:
         master_flat = ccdp.CCDData.read(master_flat, unit='adu')
-        if mask is not None:
-            mask = mask | master_flat.mask
-        else:
-            mask = master_flat.mask
     for file in files:
         image = ccdp.CCDData.read(file, unit='adu')
+        mask = np.isnan(image.data) | (image.data <= 0) | (image.data >= 65535)  # Assuming 16-bit data
+        logging.info(f'Masking {np.sum(mask)} pixels in light frame {file} before calibration.'
+                     f' {np.sum(mask)/ image.data.size:.4%} of pixels masked.')
         if master_bias is not None:
             image: CCDData = ccdp.subtract_bias(image, master_bias)
             image.meta['bias_file'] = master_bias.meta['filename']
@@ -254,10 +248,10 @@ def calibrate_lights_ccdproc(files:list, output_dir:str,
             image = ccdp.flat_correct(image, master_flat, min_value=0.1, norm_value=1)
             image.meta['flat_file'] = master_flat.meta['filename']
         # mask values which were masked in the calibration steps or are NaN
-        if mask is not None:
-            mask = mask | np.isnan(image.data) | (image.data <= 0) | (image.data >= 65535)
+        if image.mask is not None:
+            image.mask = mask | image.mask
         else:
-            mask = np.isnan(image.data) | (image.data <= 0) | (image.data >= 65535)
+            image.mask = mask
         logging.info(f'Masking {np.sum(mask)} pixels in calibrated light frame {file}.')
         image.mask = mask
         # Save calibrated light frame
