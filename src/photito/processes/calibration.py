@@ -51,7 +51,7 @@ def combine_bias_ccdproc(files: list, output: str, mem_limit=32e9,
         bias.meta['clip_h'] = sigma_clip_high_thresh
     bias.write(output, overwrite=True)
 
-def calibrate_darks_ccdproc(files: list, output_dir: str, bias: str = None, mem_limit=32e9):
+def calibrate_darks_ccdproc(files: list, output_dir: str, bias: str = None, mem_limit=32e9, output_dtype=np.float32):
     """Calibrate dark frames using ccdproc.
     :param files: List of dark frames.
     :param output_dir: Output folder.
@@ -84,7 +84,7 @@ def calibrate_darks_ccdproc(files: list, output_dir: str, bias: str = None, mem_
             dark.mask = mask | dark.mask  # Combine masks
         else:
             dark.mask = mask
-
+        dark.data = dark.data.astype(output_dtype)  # Ensure data is in float32 format
         # Save calibrated dark frame
         dark.write(output_dir + '/' + file.split('/')[-1], overwrite=True)
 
@@ -137,8 +137,8 @@ def combine_darks_ccdproc(files: list, output: str, validate=True, mem_limit=32e
         dark.meta['clip_h'] = sigma_clip_high_thresh
     dark.write(output, overwrite=True)
 
-def calibrate_flats_ccdproc(files: list, output_dir: str, dark: str = None, bias: str = None, mem_limit=32e9):
-    """Calibrate flat frames using ccdproc. Only supply a bias frame if using dark scaling.
+def calibrate_flats_ccdproc(files: list, output_dir: str, dark: str = None, bias: str = None, mem_limit=32e9, output_dtype=np.float32):
+    """Calibrate flat frames using ccdproc.
     :param files: List of flat frames.
     :param output_dir: Output folder.
     :param bias: Master bias frame location.
@@ -156,6 +156,8 @@ def calibrate_flats_ccdproc(files: list, output_dir: str, dark: str = None, bias
         master_dark = ccdp.CCDData.read(dark, unit='adu')
         if bias is not None:
             master_bias = ccdp.CCDData.read(bias, unit='adu')
+            if flat.meta['cam-gain'] != master_bias.meta['cam-gain']:
+                logging.warning(f'Gain mismatch between flat and bias frames: {file} and {bias}.')
             flat = ccdp.subtract_bias(flat, master_bias)
             flat.meta['bias_file'] = bias.split('/')[-1]
             if dark is not None:
@@ -165,6 +167,7 @@ def calibrate_flats_ccdproc(files: list, output_dir: str, dark: str = None, bias
             flat = ccdp.subtract_dark(flat, master_dark, exposure_time='exptime', exposure_unit=u.s, scale=False)
             flat.meta['dark_file'] = dark.split('/')[-1]
         flat.meta['calibrated'] = True
+        flat.data = flat.data.astype(output_dtype)  # Ensure data is in float32 format
         logging.info(f"Writing calibrated flat frame {file} to {output_dir + '/' + file.split('/')[-1]}.")
         flat.write(output_dir + '/' + file.split('/')[-1], overwrite=True)
 
