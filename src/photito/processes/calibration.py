@@ -118,8 +118,9 @@ def combine_darks_ccdproc(files: list, output: str, validate=True, mem_limit=32e
     dark = ccdp.combine(files, method=combine_method, unit='adu',
                         sigma_clip=sigma_clip, sigma_clip_low_thresh=sigma_clip_low_thresh,
                         sigma_clip_high_thresh=sigma_clip_high_thresh,
-                        mem_limit=mem_limit, dtype=dtype)
+                        mem_limit=mem_limit)
     # mask values which have saturation or are NaN
+    dark.data = dark.data.astype(dtype)
     mask = np.isnan(dark.data)  | (dark.data >= max_value)  # Assuming 16-bit data
     logging.info(f'Masking {np.sum(mask)} pixels in combined dark frame.')
     if dark.mask is not None:
@@ -204,8 +205,9 @@ def combine_flats_ccdproc(files: list, output: str, validate=True, mem_limit=32e
                         sigma_clip=sigma_clip, sigma_clip_low_thresh=sigma_clip_low_thresh,
                         sigma_clip_high_thresh=sigma_clip_high_thresh, sigclip_func=np.ma.median,
                         sigma_clip_dev_func=mad_std,
-                        mem_limit=mem_limit, dtype=dtype, scale=inv_median)
+                        mem_limit=mem_limit, scale=inv_median)
     # mask values which have saturation or are NaN
+    flat.data = flat.data.astype(dtype)
     mask = np.isnan(flat.data) | (flat.data <= 0) | (flat.data >= 65535)  # Assuming 16-bit data
     logging.info(f'Masking {np.sum(mask)} pixels in combined flat frame.')
     flat.mask = mask
