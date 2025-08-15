@@ -203,8 +203,8 @@ def combine_flats_ccdproc(files: list, output: str, validate=True, mem_limit=32e
     flats = [ccdp.CCDData.read(file, unit='adu') for file in files]
     flat = ccdp.combine(flats, method=combine_method, unit='adu',
                         sigma_clip=sigma_clip, sigma_clip_low_thresh=sigma_clip_low_thresh,
-                        sigma_clip_high_thresh=sigma_clip_high_thresh, sigclip_func=np.ma.median,
-                        sigma_clip_dev_func=mad_std,
+                        sigma_clip_high_thresh=sigma_clip_high_thresh, #sigclip_func=np.ma.median,
+                        #sigma_clip_dev_func=mad_std,
                         mem_limit=mem_limit, scale=inv_median)
     # mask values which have saturation or are NaN
     flat.data = flat.data.astype(dtype)
