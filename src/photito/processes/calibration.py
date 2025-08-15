@@ -151,6 +151,7 @@ def calibrate_flats_ccdproc(files: list, output_dir: str, dark: str = None, bias
             raise ValueError(f'Image {file} is not a flat frame.')
     # Calibrate flat frames
     for file in files:
+        logging.info(f'Calibrating {file}')
         flat = ccdp.CCDData.read(file, unit='adu')
         master_dark = ccdp.CCDData.read(dark, unit='adu')
         if bias is not None:
@@ -164,6 +165,7 @@ def calibrate_flats_ccdproc(files: list, output_dir: str, dark: str = None, bias
             flat = ccdp.subtract_dark(flat, master_dark, exposure_time='exptime', exposure_unit=u.s, scale=False)
             flat.meta['dark_file'] = dark.split('/')[-1]
         flat.meta['calibrated'] = True
+        logging.info(f"Writing calibrated flat frame {file} to {output_dir + '/' + file.split('/')[-1]}.")
         flat.write(output_dir + '/' + file.split('/')[-1], overwrite=True)
 
 def combine_flats_ccdproc(files: list, output: str, validate=True, mem_limit=32e9,
@@ -227,26 +229,26 @@ def calibrate_lights_ccdproc(files:list, output_dir:str,
     scale = False
     mask = None
     if master_bias is not None:
-        master_bias = ccdp.CCDData.read(master_bias, unit='adu')
+        master_bias_data = ccdp.CCDData.read(master_bias, unit='adu')
         scale = True
     if master_dark is not None:
-        master_dark = ccdp.CCDData.read(master_dark, unit='adu')
+        master_dark_data = ccdp.CCDData.read(master_dark, unit='adu')
     if master_flat is not None:
-        master_flat = ccdp.CCDData.read(master_flat, unit='adu')
+        master_flat_data = ccdp.CCDData.read(master_flat, unit='adu')
     for file in files:
         image = ccdp.CCDData.read(file, unit='adu')
         mask = np.isnan(image.data) | (image.data <= 0) | (image.data >= 65535)  # Assuming 16-bit data
         logging.info(f'Masking {np.sum(mask)} pixels in light frame {file} before calibration.'
                      f' {np.sum(mask)/ image.data.size:.4%} of pixels masked.')
         if master_bias is not None:
-            image: CCDData = ccdp.subtract_bias(image, master_bias)
-            image.meta['bias_file'] = master_bias.meta['filename']
+            image: CCDData = ccdp.subtract_bias(image, master_bias_data)
+            image.meta['bias_f'] = master_bias.split("/")[-1]
         if master_dark is not None:
-            image = ccdp.subtract_dark(image, master_dark, exposure_time='exptime', exposure_unit=u.s, scale=scale)
-            image.meta['dark_file'] = master_dark.meta['filename']
+            image = ccdp.subtract_dark(image, master_dark_data, exposure_time='exptime', exposure_unit=u.s, scale=scale)
+            image.meta['dark_f'] = master_dark.split("/")[-1]
         if master_flat is not None:
-            image = ccdp.flat_correct(image, master_flat, min_value=0.1, norm_value=1)
-            image.meta['flat_file'] = master_flat.meta['filename']
+            image = ccdp.flat_correct(image, master_flat_data, min_value=0.1, norm_value=1)
+            image.meta['flat_f'] = master_flat.split("/")[-1]
         # mask values which were masked in the calibration steps or are NaN
         if image.mask is not None:
             image.mask = mask | image.mask
@@ -255,6 +257,6 @@ def calibrate_lights_ccdproc(files:list, output_dir:str,
         logging.info(f'Masking {np.sum(mask)} pixels in calibrated light frame {file}.')
         image.mask = mask
         # Save calibrated light frame
-        image.meta['calibrated'] = True
+        image.meta['calib'] = True
         image.write(output_dir + '/' + file.split('/')[-1], overwrite=True)
 
